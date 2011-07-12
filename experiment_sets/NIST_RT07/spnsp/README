@@ -1,0 +1,7 @@
+cp /u/marijn/projects/spkrdiar/spnspnew/expt/sad-shout_005/*.rttm .
+
+foreach f ( `ls -1 *.rttm` )
+foreach? set foo = $f:r
+foreach? cat $f | ./rttm2spch.py > $foo.spch
+foreach? end
+

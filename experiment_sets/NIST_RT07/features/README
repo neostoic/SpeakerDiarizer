@@ -1,0 +1,6 @@
+This folder contains MFCC features created by using HCopy and the configuration file "config":
+
+HCopy -C config -S list
+
+
+by David Imseng, March 17 2009
