@@ -10,6 +10,8 @@ import time
 import struct
 import scipy.stats.mstats as stats
 import ConfigParser
+import os.path
+import getopt
 
 from em import *
 
@@ -238,7 +240,7 @@ class EMTester(object):
 
         return iter_bic_dict, iter_bic_list, most_likely
         
-    def cluster(self, KL, NUM_SEG_LOOPS_INIT, NUM_SEG_LOOPS):
+    def cluster(self, KL_ntop, NUM_SEG_LOOPS_INIT, NUM_SEG_LOOPS):
         
         main_start = time.time()
 
@@ -274,9 +276,9 @@ class EMTester(object):
             merged_tuple_indices = None
 
             # ------- KL distance to compute best pairs to merge -------
-            if KL:
+            if KL_ntop > 0:
             
-                top_K_gmm_pairs = self.gmm_list[0].find_top_KL_pairs(3, self.gmm_list)
+                top_K_gmm_pairs = self.gmm_list[0].find_top_KL_pairs(KL_ntop, self.gmm_list)
                 
                 for pair in top_K_gmm_pairs:
                     score = 0.0
@@ -337,15 +339,131 @@ class EMTester(object):
 
         return most_likely
 
+def print_usage():
+    print """    ---------------------------------------------
+    Speaker Diarization in Python with ASP usage:
+    ---------------------------------------------
+    Arguments for the diarizer are parsed from a config file. 
+    Default config file is diarizer.cfg, but you can pass your own file with the '-c' option. 
+    Required is the config file header: [Diarizer] and the options are as follows:
+    
+    --- Required: ---
+    basename: \t Basename of the file to process
+    mfcc_feats: \t MFCC input feature file
+    output_cluster: \t Output clustering file
+    M_mfcc: \t Amount of gaussains per model for mfcc
+    initial_clusters: Number of initial clusters"""
+    
+    
+    
+def print_no_config():
+
+    print "Please supply a config file with -c 'config_file_name.cfg' "
+    return
+
+def get_config_params(config):
+        #read in filenames
+    try:
+        meeting_name = config.get('Diarizer', 'basename')
+    except:
+        print "basename not specified in config file! exiting..."
+        sys.exit(2)
+    try:
+        f = config.get('Diarizer', 'mfcc_feats')
+    except:
+        print "Feature file mfcc_feats not specified in config file! exiting..."
+        sys.exit(2)
+
+    try:
+        sp = config.get('Diarizer', 'spnsp_file')
+    except:
+        print "Speech file spnsp_file not specified, continuing without it..."
+        sp = False
+
+    try:
+        outfile = config.get('Diarizer', 'output_cluster')
+    except:
+        print "output_cluster file not specified in config file! exiting..."
+        sys.exit(2)
         
+    #read GMM paramters
+    try:
+        num_gmms = int(config.get('Diarizer', 'initial_clusters'))
+    except:
+        print "initial_clusters not specified in config file! exiting..."
+        sys.exit(2)
+
+    try:
+        num_comps = int(config.get('Diarizer', 'M_mfcc'))
+    except:
+        print "M_mfcc not specified in config file! exiting..."
+        sys.exit(2)
+        
+    #read algorithm configuration
+    try:
+        kl_ntop = int(config.get('Diarizer', 'KL_ntop'))
+    except:
+        kl_ntop = 0
+    try:
+        num_seg_iters_init = int(config.get('Diarizer', 'num_seg_iters_init'))
+    except:
+        num_seg_iters_init = 2
+        
+    try:
+        num_seg_iters = int(config.get('Diarizer', 'num_seg_iters'))
+    except:
+        num_seg_iters = 3
+
+    try:
+        num_em_iters = config.get('Diarizer', 'em_iterations')
+    except:
+        num_em_iters = 3
+
+        
+    return meeting_name, f, sp, outfile, num_gmms, num_comps, num_em_iters, kl_ntop, num_seg_iters_init, num_seg_iters
+
+
+
 if __name__ == '__main__':
     device_id = 0
     
     #----- Main Clustering Script ----
 
+    # Process commandline arguments
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "c:", ["help"])
+    except getopt.GetoptError, err:
+        print_no_config()
+        sys.exit(2)
+
+    config_file = 'diarizer.cfg'
+    config_specified = False
+    for o, a in opts:
+        if o == '-c':
+            config_file = a
+            config_specified = True
+        if o == '--help':
+            print_usage()
+            sys.exit(2)
+    
+
+    if not config_specified:
+        print "No config file specified, using defaul 'diarizer.cfg' file"
+    else:
+        print "Using the config file specified: '", config_file, "'"
+
+    try:
+        open(config_file)
+    except IOError, err:
+        print "Error! Config file: '", config_file, "' does not exist"
+        sys.exit(2)
+        
     # Parse config file
     config = ConfigParser.ConfigParser()
-    config.read('diarizer.cfg')
+
+    config.read(config_file)
+
+    meeting_name, f, sp, outfile, num_gmms, num_comps, num_em_iters, kl_ntop, num_seg_iters_init, num_seg_iters = get_config_params(config)
     
     variant_param_space = {
             'num_blocks_estep': ['16'],
@@ -357,32 +475,15 @@ if __name__ == '__main__':
             'max_num_dimensions_covar_v3': ['40'],
             'max_num_components_covar_v3': ['82'],
             'diag_only': ['1'],
-            'max_iters': ['3'],
+            'max_iters': [num_em_iters],
             'min_iters': ['1'],
             'covar_version_name': ['V1']
             #'covar_version_name': ['V1', 'V2A', 'V2B', 'V3']
     }
-
-    #read in filenames
-    meeting_name = config.get('Diarizer', 'base_name')
-    f = config.get('Diarizer', 'mfcc_file')
-    sp = config.get('Diarizer', 'spnsp_file')
-    outfile = config.get('Diarizer', 'output_file')
-    
-    #read GMM paramters
-    num_gmms = int(config.get('Diarizer', 'k'))
-    num_comps = int(config.get('Diarizer', 'm'))
-
-    #read algorithm configuration
-    kl_dist = int(config.get('Diarizer', 'kl'))
-    kl = True
-    if kl_dist == 0:
-        kl = False
-    num_seg_iters_init = int(config.get('Diarizer', 'num_seg_iters_init'))
-    num_seg_iters = int(config.get('Diarizer', 'num_seg_iters'))
-
+        
     emt = EMTester(True, f, sp, variant_param_space, device_id)
     emt.new_gmm_list(num_comps, num_gmms)
-    most_likely = emt.cluster(kl, num_seg_iters_init, num_seg_iters)
+    most_likely = emt.cluster(kl_ntop, num_seg_iters_init, num_seg_iters)
     emt.write_to_RTTM(outfile, sp, meeting_name, most_likely, num_gmms)
+
 
