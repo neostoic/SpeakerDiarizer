@@ -352,9 +352,18 @@ def print_usage():
     mfcc_feats: \t MFCC input feature file
     output_cluster: \t Output clustering file
     M_mfcc: \t Amount of gaussains per model for mfcc
-    initial_clusters: Number of initial clusters"""
-    
-    
+    initial_clusters: Number of initial clusters
+
+    --- Optional: ---
+    spnsp_file: \t spnsp file (all features used by default)
+    KL_ntop: \t Nuber of combinations to evaluate BIC on, 0 to deactive KL-divergency (fastmatch-component)
+    em_iterations: \t Number of iterations for the standard segmentation loop training (3 by default)
+    num_seg_iters_init: \t Number of majority vote iterations in the initialization phase (2 by default)
+    num_seg_iters: \t Number of majority vote iterations in the main loop (3 by default)
+
+    For fastest performance, enable KL-divergency (KL_ntop = 3) and set num_seg_iters_init and num_seg_iters to 1
+    """
+
     
 def print_no_config():
 

@@ -11,6 +11,7 @@
 #define COVARIANCE_DYNAMIC_RANGE 1E6
 #define MINVALUEFORMINUSLOG -1000.0
 
+
 #  define CUT_CHECK_ERROR(errorMessage) {                                    \
     cudaError_t err = cudaGetLastError();                                    \
     if( cudaSuccess != err) {                                                \
@@ -166,12 +167,6 @@ void seed_components(int num_dimensions, int num_components, int num_events) {
   seed_components_launch(d_fcs_data_by_event, d_components, num_dimensions, num_components, num_events);
   CUT_CHECK_ERROR("SEED FAIL");
 }
-
-/* void seed_components_launch(float* d_fcs_data_by_event, components_t* d_components, int num_dimensions, int num_components, int num_events) */
-/* { */
-/*   seed_components<<< 1, 256 >>>( d_fcs_data_by_event, d_components, num_dimensions, num_components, num_events); */
-/* } */
-
 
 
 // ================== Event data allocation on CPU  ================= :
@@ -603,36 +598,22 @@ float compute_KL_distance(int DIM, int gmm1_M, int gmm2_M, pyublas::numpy_array<
           for(int j=0;j<DIM;j++)
             {
               if(j==k){
-                //aux = sqrt(19.0)*sqrt(gmm[cd1].gArray[i].Var[k]);
-                //point_a[j]=gmm[cd1].gArray[i].Mean[j] + aux;
-                //point_b[j]=gmm[cd1].gArray[i].Mean[j] - aux;
                 aux = sqrt(19.0)*sqrt(gmm1_covars[i*DIM*DIM + k*DIM+k]);
                 point_a[j] = gmm1_means[i*DIM+j] + aux;
                 point_b[j] = gmm1_means[i*DIM+j] - aux;
               }
               else{
-                //point_a[j]=gmm[cd1].gArray[i].Mean[j];
-                //point_b[j]=gmm[cd1].gArray[i].Mean[j];
                 point_a[j] = gmm1_means[i*DIM+j];
                 point_b[j] = gmm1_means[i*DIM+j];
               }
             }
-
-          //          float Log_Likelihood_KL(float *feature, int DIM, int gmm_M, float *gmm_weights, float *gmm_means, float *gmm_covars, float *gmm_CP)
-          //log_g1+=gmm[cd2].Log_Likelihood_KL(point_a)+gmm[cd2].Log_Likelihood_KL(point_b);
-          //log_f1+=gmm[cd1].Log_Likelihood_KL(point_a)+gmm[cd1].Log_Likelihood_KL(point_b);
           log_g1+=Log_Likelihood_KL(point_a, DIM, gmm2_M, gmm2_weights, gmm2_means, gmm2_covars, gmm2_CP)+Log_Likelihood_KL(point_b, DIM, gmm2_M, gmm2_weights, gmm2_means, gmm2_covars, gmm2_CP);
           log_f1+=Log_Likelihood_KL(point_a, DIM, gmm1_M, gmm1_weights, gmm1_means, gmm1_covars, gmm1_CP)+Log_Likelihood_KL(point_b, DIM, gmm1_M, gmm1_weights, gmm1_means, gmm1_covars, gmm1_CP);
-          //
-          //  printf("log_g1 = %f, log_f1 = %f\n", log_g1, log_f1);
-          
-          
         }
-      //f_log_g+=gmm[cd1].Weight[i]*log_g1;
-      //f_log_f+=gmm[cd1].Weight[i]*log_f1;
+
       f_log_g+=gmm1_weights[i]*log_g1;
       f_log_f+=gmm1_weights[i]*log_f1;
-      //printf("------- f_log_g = %f, f_log_f = %f\n", f_log_g, f_log_f);
+
     }
   for(int i=0;i<gmm2_M;i++)
     {
@@ -643,32 +624,24 @@ float compute_KL_distance(int DIM, int gmm1_M, int gmm2_M, pyublas::numpy_array<
           for(int j=0;j<DIM;j++)
             {
               if(j==k){
-                //aux = sqrt(19.0)*sqrt(gmm[cd2].gArray[i].Var[k]);
-                //point_a[j]=gmm[cd2].gArray[i].Mean[j] + aux;
-                //point_b[j]=gmm[cd2].gArray[i].Mean[j] - aux;
                 aux = sqrt(19.0)*sqrt(gmm2_covars[i*DIM*DIM + k*DIM+k]);
                 point_a[j] = gmm2_means[i*DIM+j] + aux;
                 point_b[j] = gmm2_means[i*DIM+j] - aux;
               }
               else{
-                //point_a[j]=gmm[cd2].gArray[i].Mean[j];
-                //point_b[j]=gmm[cd2].gArray[i].Mean[j];
                 point_a[j] = gmm2_means[i*DIM+j];
                 point_b[j] = gmm2_means[i*DIM+j];
               }
             }
-          //log_g2+=gmm[cd2].Log_Likelihood_KL(point_a)+gmm[cd2].Log_Likelihood_KL(point_b);
-          //log_f2+=gmm[cd1].Log_Likelihood_KL(point_a)+gmm[cd1].Log_Likelihood_KL(point_b);
+
           log_g2+=Log_Likelihood_KL(point_a, DIM, gmm2_M, gmm2_weights, gmm2_means, gmm2_covars, gmm2_CP)+Log_Likelihood_KL(point_b, DIM, gmm2_M, gmm2_weights, gmm2_means, gmm2_covars, gmm2_CP);
           log_f2+=Log_Likelihood_KL(point_a, DIM, gmm1_M, gmm1_weights, gmm1_means, gmm1_covars, gmm1_CP)+Log_Likelihood_KL(point_b, DIM, gmm1_M, gmm1_weights, gmm1_means, gmm1_covars, gmm1_CP);
 
           
         }
-      //g_log_g+=gmm[cd2].Weight[i]*log_g2;
-      //g_log_f+=gmm[cd2].Weight[i]*log_f2;
       g_log_g+=gmm2_weights[i]*log_g2;
       g_log_f+=gmm2_weights[i]*log_f2;
-      //      printf("g_log_g = %f, g_log_f = %f\n", g_log_g, g_log_f);
+
     }
   delete [] point_a;
   delete [] point_b;
