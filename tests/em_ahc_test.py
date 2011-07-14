@@ -35,10 +35,10 @@ class EMTester(object):
         self.results = {}
         self.variant_param_space = variant_param_space
         self.device_id = device_id
+
         if from_file:
 
             f = open(f_file_name, "rb")
-            sp = open(sp_file_name, "r")
 
             print "Reading in HTK feature file..."
 
@@ -65,43 +65,52 @@ class EMTester(object):
 
             #=== Prune to Speech Only ==
             print "Reading in speech/nonspeech file..."
-            
-            l_start = []
-            l_end = []
-            num_speech_frames = 0
-            for line in sp:
-                s = line.split(' ')
-                st = math.floor(100 * float(s[2]) + 0.5)
-                en = math.floor(100 * float(s[3].replace('\n','')) + 0.5)
-                st1 = int(st)
-                en1 = int(en)
-                l_start.append(st1*19)
-                l_end.append(en1*19)
-                num_speech_frames = num_speech_frames + (en1 - st1 + 1)
-
-            print "Total number of speech frames: ", num_speech_frames
             pruned_list = []
-            total = 0
-            for start in l_start:
-                end = l_end[l_start.index(start)]
-                total += (end/19 - start/19 + 1)
-                x = 0
-                index = start
-                while x < (end-start+19):
-                    pruned_list.append(l[index])
-                    index += 1
-                    x += 1
+            num_speech_frames = nSamples            
+
+            if sp_file_name:
+                sp = open(sp_file_name, "r")
+                        
+                l_start = []
+                l_end = []
+                num_speech_frames = 0
+                for line in sp:
+                    s = line.split(' ')
+                    st = math.floor(100 * float(s[2]) + 0.5)
+                    en = math.floor(100 * float(s[3].replace('\n','')) + 0.5)
+                    st1 = int(st)
+                    en1 = int(en)
+                    l_start.append(st1*19)
+                    l_end.append(en1*19)
+                    num_speech_frames = num_speech_frames + (en1 - st1 + 1)
+
+                print "Total number of speech frames: ", num_speech_frames
+
+                total = 0
+                for start in l_start:
+                    end = l_end[l_start.index(start)]
+                    total += (end/19 - start/19 + 1)
+                    x = 0
+                    index = start
+                    while x < (end-start+19):
+                        pruned_list.append(l[index])
+                        index += 1
+                        x += 1
+            else: #no speech file, take in all features
+                pruned_list = l
 
             floatArray = np.array(pruned_list, dtype = np.float32)
             self.X = floatArray.reshape(num_speech_frames, D)
             
             self.N = self.X.shape[0]
             self.D = self.X.shape[1]
+
         else:
             N = 1000
             self.X = generate_synthetic_data(N)
             self.N = self.X.shape[0]
             self.D = self.X.shape[1]
+
 
     def write_to_RTTM(self, rttm_file_name, sp_file_name, meeting_name, most_likely, num_gmms):
 
